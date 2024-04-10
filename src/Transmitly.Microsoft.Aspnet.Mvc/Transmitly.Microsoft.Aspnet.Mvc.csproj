@@ -7,11 +7,11 @@
 		<IsPackable>true</IsPackable>
 		<AssemblyVersion>0.0.1</AssemblyVersion>
 		<AssemblyFileVersion>0.0.1</AssemblyFileVersion>
-		<PackageId>Transmitly.System.Web.Mvc</PackageId>
+		<PackageId>Transmitly.Microsoft.Aspnet.Mvc</PackageId>
 		<Product>Transmitly</Product>
 		<ProductName>Transmit.ly</ProductName>
 		<Company>Code Impressions</Company>
-		<Title>Transmit.ly System.Web.Mvc utilties.</Title>
+		<Title>Transmit.ly Microsoft.Aspnet.Mvc utilties.</Title>
 		<Description>A utility project for manaing channel provider requests for the Transmitly communications library.</Description>
 		<Copyright>Copyright (c) Code Impressions, LLC</Copyright>
 		<Authors>Code Impressions</Authors>
