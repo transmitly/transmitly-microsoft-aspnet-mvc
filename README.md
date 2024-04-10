@@ -41,8 +41,10 @@ public ICommunicationsClient CreateCommunicationsClient()
 
 
 # Using Default Delivery Report Controller
-Inheriting the ChannelProviderDeliveryReportController will setup a route named, _HandleDeliveryReport_ that will automatically trigger
-your registered delivery report handlers for the provided ICommunicationsClient
+Inheriting the ChannelProviderDeliveryReportController will setup an `POST` route named, `HandleDeliveryReport` (example: `https://yourapp.com/Communications/HandleDeliveryReport`) that will automatically trigger
+your registered delivery report handlers for the provided ICommunicationsClient.
+
+The `HandleDeliveryReport` method can be overridden. Allowing you to customize behaviors and set route specifics.
 
 MyDeliveryReportsController.cs
 ```csharp 
