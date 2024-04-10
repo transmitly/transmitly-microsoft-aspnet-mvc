@@ -1,4 +1,4 @@
-# Transmitly.ChannelProvider.SendGrid
+# Transmitly.Microsoft.Aspnet.Mvc
 
 A [Transmitly](https://github.com/transmitly/transmitly) utility package for handling registration and controllers for channel provider delivery reports.
 
