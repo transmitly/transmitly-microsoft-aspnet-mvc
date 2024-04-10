@@ -1,0 +1,14 @@
+name: Build and Test
+
+on: 
+  workflow_dispatch:
+  push:
+    paths:
+      - "src/Transmitly.Microsoft.Aspnet.Mvc/**"
+jobs:
+  build_test_deploy_channel_provider:
+    uses: transmitly/transmitly/.github/workflows/build-and-deploy-channel-provider.yml@main
+    with: 
+      channelProviderName: Transmitly.Microsoft.Aspnet.Mvc
+    secrets: inherit
+      
