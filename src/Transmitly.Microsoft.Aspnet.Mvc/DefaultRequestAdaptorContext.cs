@@ -19,42 +19,42 @@ using Transmitly.Delivery;
 
 namespace Transmitly.Microsoft.Aspnet.Mvc
 {
-    /// <summary>
-    /// Wraps the provided value provider and request body into the expected adaptor context.
-    /// </summary>
-    /// <param name="valueProvider">Querystring parameters.</param>
-    /// <param name="requestBody">Request string body.</param>
-    internal sealed class DefaultRequestAdaptorContext(NameValueCollection valueProvider, string requestBody) : IRequestAdaptorContext
-    {
-        private readonly NameValueCollection _valueProvider = valueProvider;
-        private readonly Dictionary<string, string> _queryString = valueProvider.AllKeys.ToDictionary(k => k, k => valueProvider[k]);
+	/// <summary>
+	/// Wraps the provided value provider and request body into the expected adaptor context.
+	/// </summary>
+	/// <param name="valueProvider">Querystring parameters.</param>
+	/// <param name="requestBody">Request string body.</param>
+	internal sealed class DefaultRequestAdaptorContext(NameValueCollection valueProvider, string requestBody) : IRequestAdaptorContext
+	{
+		private readonly NameValueCollection _valueProvider = valueProvider;
+		private readonly Dictionary<string, string> _queryString = valueProvider.AllKeys.ToDictionary(k => k, k => valueProvider[k]);
 
-        public string GetValue(string key)
-        {
-            return _valueProvider.GetValues(key).FirstOrDefault();
-        }
+		public string GetValue(string key)
+		{
+			return _valueProvider.GetValues(key).FirstOrDefault();
+		}
 
-        public string? GetQueryValue(string key)
-        {
-            return GetValue(key);
-        }
+		public string? GetQueryValue(string key)
+		{
+			return GetValue(key);
+		}
 
-        public string? GetFormValue(string key)
-        {
-            return GetValue(key);
-        }
+		public string? GetFormValue(string key)
+		{
+			return GetValue(key);
+		}
 
-        public string? GetHeaderValue(string key)
-        {
-            return GetValue(key);
-        }
+		public string? GetHeaderValue(string key)
+		{
+			return GetValue(key);
+		}
 
-        public string Content { get; } = requestBody;
+		public string Content { get; } = requestBody;
 
-        public string PipelineName => GetValue(DeliveryUtil.PipelineNameKey);
+		public string PipelineName => GetValue(DeliveryUtil.PipelineNameKey);
 
-        public string ResourceId => GetValue(DeliveryUtil.ResourceIdKey);
+		public string ResourceId => GetValue(DeliveryUtil.ResourceIdKey);
 
-        public IDictionary<string, string> QueryString => _queryString;
-    }
+		public IDictionary<string, string> QueryString => _queryString;
+	}
 }
