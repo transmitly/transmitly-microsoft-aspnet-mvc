@@ -18,6 +18,7 @@ using System.Linq;
 using Transmitly.ChannelProvider.Configuration;
 using Transmitly.Delivery;
 using System.Web.Mvc;
+using Transmitly.Util;
 
 namespace Transmitly.Microsoft.Aspnet.Mvc
 {
@@ -32,13 +33,13 @@ namespace Transmitly.Microsoft.Aspnet.Mvc
 		{
 			Guard.AgainstNull(channelProviderFactory);
 			var adaptors = AsyncHelper.RunSync(channelProviderFactory.GetAllDeliveryReportRequestAdaptorsAsync);
-			_adaptorInstances = adaptors.Select(s =>
+			_adaptorInstances = [.. adaptors.Select(s =>
 				new Lazy<IChannelProviderDeliveryReportRequestAdaptor>(
 					() => AsyncHelper.RunSync(
 						() => channelProviderFactory.ResolveDeliveryReportRequestAdaptorAsync(s)
 					)
 				)
-			).ToList();
+			)];
 		}
 
 		public IModelBinder? GetBinder(Type modelType)

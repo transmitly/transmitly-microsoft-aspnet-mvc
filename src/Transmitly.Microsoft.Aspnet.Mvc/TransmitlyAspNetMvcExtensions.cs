@@ -16,9 +16,6 @@ using System.Linq;
 using Transmitly.ChannelProvider.Configuration;
 using System.Web.Mvc;
 using Transmitly.Microsoft.Aspnet.Mvc;
-using System.Net;
-using Transmitly.Delivery;
-using System;
 
 namespace Transmitly
 {

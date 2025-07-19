@@ -51,10 +51,13 @@ namespace Transmitly.Microsoft.Aspnet.Mvc
 
 		public string Content { get; } = requestBody;
 
-		public string PipelineName => GetValue(DeliveryUtil.PipelineNameKey);
 
 		public string ResourceId => GetValue(DeliveryUtil.ResourceIdKey);
 
 		public IDictionary<string, string> QueryString => _queryString;
+
+		public string? PipelineIntent => GetValue(DeliveryUtil.PipelineIntentKey);
+
+		public string? PipelineId => GetValue(DeliveryUtil.PipelineIdKey);
 	}
 }
