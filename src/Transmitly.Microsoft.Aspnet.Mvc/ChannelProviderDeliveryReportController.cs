@@ -16,6 +16,7 @@ using System.Linq;
 using System.Web.Mvc;
 using System.Net;
 using Transmitly.Delivery;
+using Transmitly.Util;
 
 namespace Transmitly
 {
@@ -37,7 +38,7 @@ namespace Transmitly
 		{
 			if (ModelState.IsValid && request != null && request.DeliveryReports != null)
 			{
-				_communicationsClient.DeliverReports(request.DeliveryReports);
+				_communicationsClient.DispatchAsync(request.DeliveryReports);
 				return new HttpStatusCodeResult(HttpStatusCode.OK);
 			}
 			return new HttpStatusCodeResult(HttpStatusCode.InternalServerError, string.Join("; ", ModelState.Values.SelectMany(v => v.Errors)));
