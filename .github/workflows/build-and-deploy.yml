@@ -1,5 +1,6 @@
 name: Build and Test
-
+permissions:
+  contents: read
 on: 
   workflow_dispatch:
   push:
@@ -13,4 +14,5 @@ jobs:
     with: 
       channelProviderName: Transmitly.Microsoft.Aspnet.Mvc
     secrets: inherit
+
       
