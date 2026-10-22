@@ -4,7 +4,7 @@ A [Transmitly](https://github.com/transmitly/transmitly) utility package for han
 
 ### Getting started
 
-To use install the [NuGet package](https://nuget.org/packages/transmitly-microsoft-aspnet-mvc):
+To use install the [NuGet package](https://www.nuget.org/packages/Transmitly.Microsoft.Aspnet.Mvc):
 
 ```shell
 dotnet add package Transmitly.Microsoft.Aspnet.Mvc
@@ -14,6 +14,7 @@ Then add the model binders using `AddChannelProviderDeliveryReportModelBinders()
 
 ```csharp
 using Transmitly;
+using Transmitly.ChannelProvider.Configuration;
 ...
 protected void Application_Start()
 {
@@ -29,12 +30,14 @@ protected void Application_Start()
 -or-
 ```csharp
 using Transmitly;
+using Transmitly.ChannelProvider.Configuration;
 ...
 public ICommunicationsClient CreateCommunicationsClient()
 {
-	return new CommunicationsClientBuilder()
+	var builder = new CommunicationsClientBuilder();
 	...
-	.AddChannelProviderDeliveryReportModelBinders(ServiceLocator.GetService<IChannelProviderFactory>());
+	builder.AddChannelProviderDeliveryReportModelBinders(ServiceLocator.GetService<IChannelProviderFactory>());
+	return builder.BuildClient();
 }
 ```
 
