@@ -32,7 +32,7 @@ namespace Transmitly
 		/// Handle an incoming channel provider delivery report. Default behavior triggers delivery report handlers.
 		/// </summary>
 		/// <param name="request">Channel provider delivery report.</param>
-		/// <returns>OK; Otherwise BadRequest with errors.</returns>
+		/// <returns>OK; Forbidden when the provider's signature check fails; otherwise an error.</returns>
 		[HttpPost]
 		public virtual ActionResult HandleDeliveryReport(ChannelProviderDeliveryReportRequest request)
 		{
@@ -41,6 +41,10 @@ namespace Transmitly
 				_communicationsClient.DispatchAsync(request.DeliveryReports);
 				return new HttpStatusCodeResult(HttpStatusCode.OK);
 			}
+			
+			if (ModelState.Values.SelectMany(v => v.Errors).Any(e => e.Exception is DeliveryReportRequestValidationException))
+				return new HttpStatusCodeResult(HttpStatusCode.Forbidden);
+
 			return new HttpStatusCodeResult(HttpStatusCode.InternalServerError, string.Join("; ", ModelState.Values.SelectMany(v => v.Errors)));
 		}
 	}

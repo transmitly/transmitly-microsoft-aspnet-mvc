@@ -30,10 +30,21 @@ namespace Transmitly.Microsoft.Aspnet.Mvc
 		{
 			controllerContext.HttpContext.Request.InputStream.Position = 0;
 			var str = new StreamReader(controllerContext.HttpContext.Request.InputStream).ReadToEnd();
+			DeliveryReportRequestValidationException? lastRejectedError = null;
 			foreach (var adaptor in adaptors)
 			{
-				var context = new DefaultRequestAdaptorContext(controllerContext.HttpContext.Request.QueryString, str);
-				var handled = AsyncHelper.RunSync(() => adaptor.Value.AdaptAsync(context));
+				var context = new DefaultRequestAdaptorContext(controllerContext.HttpContext.Request, str);
+				IReadOnlyCollection<DeliveryReport>? handled;
+				try
+				{
+					handled = AsyncHelper.RunSync(() => adaptor.Value.AdaptAsync(context));
+				}
+				catch (DeliveryReportRequestValidationException ex)
+				{
+					// Keep going: another registration of the same provider (e.g. a second account) may own this request.
+					lastRejectedError = ex;
+					continue;
+				}
 				if (handled != null)
 				{
 					foreach (var result in handled)
@@ -44,6 +55,9 @@ namespace Transmitly.Microsoft.Aspnet.Mvc
 					return new ChannelProviderDeliveryReportRequest(handled);
 				}
 			}
+			if (lastRejectedError != null)
+				bindingContext.ModelState.AddModelError(bindingContext.ModelName, lastRejectedError);
+
 #pragma warning disable CS8603 // Possible null reference return.
 			return null;
 #pragma warning restore CS8603 // Possible null reference return.
