@@ -12,9 +12,9 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 
-using System;
 using System.Collections.Generic;
 using System.IO;
+using Transmitly.ChannelProvider.Configuration;
 using Transmitly.Delivery;
 using System.Web.Mvc;
 
@@ -23,21 +23,25 @@ namespace Transmitly.Microsoft.Aspnet.Mvc
 	/// <summary>
 	/// Wraps model binding for the registered channel providers.
 	/// </summary>
-	/// <param name="adaptors"></param>
-	internal sealed class ChannelProviderDeliveryReportRequestModelBinder(List<Lazy<IChannelProviderDeliveryReportRequestAdaptor>> adaptors) : IModelBinder
+	/// <param name="channelProviderFactory"></param>
+	internal sealed class ChannelProviderDeliveryReportRequestModelBinder(IChannelProviderFactory channelProviderFactory) : IModelBinder
 	{
 		public object BindModel(ControllerContext controllerContext, ModelBindingContext bindingContext)
 		{
-			controllerContext.HttpContext.Request.InputStream.Position = 0;
-			var str = new StreamReader(controllerContext.HttpContext.Request.InputStream).ReadToEnd();
+			var input = controllerContext.HttpContext.Request.InputStream;
+			input.Position = 0;
+			var str = new StreamReader(input).ReadToEnd();
+			input.Position = 0;
+
 			DeliveryReportRequestValidationException? lastRejectedError = null;
-			foreach (var adaptor in adaptors)
+			foreach (var registration in AsyncHelper.RunSync(channelProviderFactory.GetAllDeliveryReportRequestAdaptorsAsync))
 			{
+				var adaptor = AsyncHelper.RunSync(() => channelProviderFactory.ResolveDeliveryReportRequestAdaptorAsync(registration));
 				var context = new DefaultRequestAdaptorContext(controllerContext.HttpContext.Request, str);
 				IReadOnlyCollection<DeliveryReport>? handled;
 				try
 				{
-					handled = AsyncHelper.RunSync(() => adaptor.Value.AdaptAsync(context));
+					handled = AsyncHelper.RunSync(() => adaptor.AdaptAsync(context));
 				}
 				catch (DeliveryReportRequestValidationException ex)
 				{

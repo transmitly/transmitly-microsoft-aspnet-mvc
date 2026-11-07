@@ -120,18 +120,107 @@ namespace Transmitly.Microsoft.Aspnet.Mvc.Tests
 			Assert.IsNull(fromHeader);
 		}
 
-		private static (int Status, Mock<ICommunicationsClient> Communications) Post(IChannelProviderDeliveryReportRequestAdaptor[] adaptors, string body = "{}", NameValueCollection? form = null, NameValueCollection? headers = null, string url = Url)
+		[TestMethod]
+		public void EachInstanceWebhook_IsHandledByThatInstancesAdaptors()
+		{
+			// Multi-tenant hosts register one factory that serves the current tenant's registrations (here from an AsyncLocal).
+			// The binder is registered once at startup, so it has to ask the factory per request.
+			var handledBy = new List<string>();
+			var binder = Binder(new TenantChannelProviderFactory(tenant => new FakeAdaptor(_ =>
+			{
+				handledBy.Add(tenant);
+				return [Report()];
+			})));
+
+			foreach (var tenant in new[] { "a", "b" })
+			{
+				TenantChannelProviderFactory.Current.Value = tenant;
+				Post(binder);
+			}
+
+			Assert.AreEqual("a,b", string.Join(",", handledBy));
+		}
+
+		[TestMethod]
+		public void MarkupLikeValues_ReachTheAdaptor()
+		{
+			// e.g. Mailgun's form-posted webhooks carry "<id@host>" headers, which ASP.NET request validation rejects.
+			const string body = "Message-Id=%3Cid%40example.com%3E";
+			string? formValue = null, header = null, query = null;
+			var (status, _) = Post([new FakeAdaptor(ctx =>
+			{
+				formValue = ctx.GetFormValue("Message-Id");
+				header = ctx.GetHeaderValue("X-Test");
+				query = ctx.GetQueryValue("note");
+				return [Report()];
+			})], body, form: HttpUtility.ParseQueryString(body), headers: new NameValueCollection { ["X-Test"] = "<b>" }, url: Url + "&note=%3Cb%3E");
+
+			Assert.AreEqual((int)HttpStatusCode.OK, status);
+			Assert.AreEqual("<id@example.com>", formValue);
+			Assert.AreEqual("<b>", header);
+			Assert.AreEqual("<b>", query);
+		}
+
+		[TestMethod]
+		public void BareQueryFlag_IsIgnored()
+		{
+			// "&debug" parses with a null key.
+			var (status, _) = Post([Accept()], url: Url + "&debug");
+
+			Assert.AreEqual((int)HttpStatusCode.OK, status);
+		}
+
+		[TestMethod]
+		public void Body_IsRewoundAfterBinding()
+		{
+			// So the action, or a filter after binding, can read it too.
+			var input = new MemoryStream(Encoding.UTF8.GetBytes("{}"));
+
+			Post(Binder(new FakeChannelProviderFactory([Accept()])), input: input);
+
+			Assert.AreEqual(0, input.Position);
+		}
+
+		[TestMethod]
+		public void RegisteringTwice_Throws()
+		{
+			var binders = new ModelBinderProviderCollection();
+			binders.AddChannelProviderDeliveryReportModelBinders(new FakeChannelProviderFactory([]));
+
+			Assert.ThrowsExactly<DuplicateModelBinderRegistrationException>(() => binders.AddChannelProviderDeliveryReportModelBinders(new FakeChannelProviderFactory([])));
+		}
+
+		private static (int Status, Mock<ICommunicationsClient> Communications) Post(IChannelProviderDeliveryReportRequestAdaptor[] adaptors, string body = "{}", NameValueCollection? form = null, NameValueCollection? headers = null, string url = Url) =>
+			Post(Binder(new FakeChannelProviderFactory(adaptors)), body, form, headers, url);
+
+		private static IModelBinder Binder(IChannelProviderFactory factory)
+		{
+			var binders = new ModelBinderProviderCollection();
+			binders.AddChannelProviderDeliveryReportModelBinders(factory);
+			return binders.Select(p => p.GetBinder(typeof(ChannelProviderDeliveryReportRequest))).Single(b => b != null);
+		}
+
+		private static (int Status, Mock<ICommunicationsClient> Communications) Post(IModelBinder binder, string body = "{}", NameValueCollection? form = null, NameValueCollection? headers = null, string url = Url, MemoryStream? input = null)
 		{
 			var uri = new Uri(url);
 			// Left at the end, as if something earlier in the pipeline already read the body.
-			var stream = new MemoryStream(Encoding.UTF8.GetBytes(body));
+			var stream = input ?? new MemoryStream(Encoding.UTF8.GetBytes(body));
 			stream.Seek(0, SeekOrigin.End);
+			var unvalidated = new Mock<UnvalidatedRequestValuesBase>();
+			unvalidated.Setup(r => r.Url).Returns(uri);
+			unvalidated.Setup(r => r.RawUrl).Returns(uri.PathAndQuery);
+			unvalidated.Setup(r => r.QueryString).Returns(HttpUtility.ParseQueryString(uri.Query));
+			unvalidated.Setup(r => r.Form).Returns(form ?? new NameValueCollection());
+			unvalidated.Setup(r => r.Headers).Returns(headers ?? new NameValueCollection());
 			var request = new Mock<HttpRequestBase>();
-			request.Setup(r => r.Url).Returns(uri);
-			request.Setup(r => r.RawUrl).Returns(uri.PathAndQuery);
-			request.Setup(r => r.QueryString).Returns(HttpUtility.ParseQueryString(uri.Query));
-			request.Setup(r => r.Form).Returns(form ?? new NameValueCollection());
-			request.Setup(r => r.Headers).Returns(headers ?? new NameValueCollection());
+			// ASP.NET validates these on read and throws on markup-like values; the binder must only use the unvalidated ones.
+			var rejected = new HttpRequestValidationException("A potentially dangerous Request value was detected from the client.");
+			request.Setup(r => r.Url).Throws(rejected);
+			request.Setup(r => r.RawUrl).Throws(rejected);
+			request.Setup(r => r.QueryString).Throws(rejected);
+			request.Setup(r => r.Form).Throws(rejected);
+			request.Setup(r => r.Headers).Throws(rejected);
+			request.Setup(r => r.Unvalidated).Returns(unvalidated.Object);
 			request.Setup(r => r.InputStream).Returns(stream);
 			var httpContext = new Mock<HttpContextBase>();
 			httpContext.Setup(c => c.Request).Returns(request.Object);
@@ -140,9 +229,6 @@ namespace Transmitly.Microsoft.Aspnet.Mvc.Tests
 			var controller = new DeliveryController(communications.Object);
 			controller.ControllerContext = new ControllerContext(httpContext.Object, new RouteData(), controller);
 
-			var binders = new ModelBinderProviderCollection();
-			binders.AddChannelProviderDeliveryReportModelBinders(new FakeChannelProviderFactory(adaptors));
-			var binder = binders.Select(p => p.GetBinder(typeof(ChannelProviderDeliveryReportRequest))).Single(b => b != null);
 			// MVC binds action parameters into the controller's own ModelState, so the action sees binder errors.
 			var model = (ChannelProviderDeliveryReportRequest)binder.BindModel(controller.ControllerContext, new ModelBindingContext { ModelName = "request", ModelState = controller.ModelState });
 
@@ -176,6 +262,31 @@ namespace Transmitly.Microsoft.Aspnet.Mvc.Tests
 
 			public Task<IChannelProviderDeliveryReportRequestAdaptor> ResolveDeliveryReportRequestAdaptorAsync(IDeliveryReportRequestAdaptorRegistration registration) =>
 				Task.FromResult(adaptors[((Registration)registration).Index]);
+
+			public Task<IReadOnlyCollection<IChannelProviderRegistration>> GetAllAsync() => throw new NotSupportedException();
+
+			public Task<IChannelProviderDispatcher?> ResolveDispatcherAsync(IChannelProviderRegistration channelProvider, IChannelProviderDispatcherRegistration channelProviderDispatcherRegistration) => throw new NotSupportedException();
+		}
+
+		/// <summary>
+		/// Serves the current tenant's webhook adaptor.
+		/// </summary>
+		private sealed class TenantChannelProviderFactory(Func<string, IChannelProviderDeliveryReportRequestAdaptor> adaptorFor) : IChannelProviderFactory
+		{
+			public static readonly AsyncLocal<string?> Current = new();
+
+			private sealed class Registration(string tenant) : IDeliveryReportRequestAdaptorRegistration
+			{
+				public string Tenant => tenant;
+				public Type Type => typeof(FakeAdaptor);
+				public object? Configuration => null;
+			}
+
+			public Task<IReadOnlyCollection<IDeliveryReportRequestAdaptorRegistration>> GetAllDeliveryReportRequestAdaptorsAsync() =>
+				Task.FromResult<IReadOnlyCollection<IDeliveryReportRequestAdaptorRegistration>>(new[] { new Registration(Current.Value ?? "none") });
+
+			public Task<IChannelProviderDeliveryReportRequestAdaptor> ResolveDeliveryReportRequestAdaptorAsync(IDeliveryReportRequestAdaptorRegistration registration) =>
+				Task.FromResult(adaptorFor(((Registration)registration).Tenant));
 
 			public Task<IReadOnlyCollection<IChannelProviderRegistration>> GetAllAsync() => throw new NotSupportedException();
 

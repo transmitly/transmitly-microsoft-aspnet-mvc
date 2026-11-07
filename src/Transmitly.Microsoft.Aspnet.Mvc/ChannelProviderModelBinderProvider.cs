@@ -13,8 +13,6 @@
 //  limitations under the License.
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using Transmitly.ChannelProvider.Configuration;
 using Transmitly.Delivery;
 using System.Web.Mvc;
@@ -27,26 +25,18 @@ namespace Transmitly.Microsoft.Aspnet.Mvc
 	/// </summary>
 	internal sealed class ChannelProviderModelBinderProvider : IModelBinderProvider
 	{
-		private readonly List<Lazy<IChannelProviderDeliveryReportRequestAdaptor>> _adaptorInstances;
+		private readonly IChannelProviderFactory _channelProviderFactory;
 
 		public ChannelProviderModelBinderProvider(IChannelProviderFactory channelProviderFactory)
 		{
-			Guard.AgainstNull(channelProviderFactory);
-			var adaptors = AsyncHelper.RunSync(channelProviderFactory.GetAllDeliveryReportRequestAdaptorsAsync);
-			_adaptorInstances = [.. adaptors.Select(s =>
-				new Lazy<IChannelProviderDeliveryReportRequestAdaptor>(
-					() => AsyncHelper.RunSync(
-						() => channelProviderFactory.ResolveDeliveryReportRequestAdaptorAsync(s)
-					)
-				)
-			)];
+			_channelProviderFactory = Guard.AgainstNull(channelProviderFactory);
 		}
 
 		public IModelBinder? GetBinder(Type modelType)
 		{
 			if (modelType == typeof(ChannelProviderDeliveryReportRequest))
 			{
-				return new ChannelProviderDeliveryReportRequestModelBinder(_adaptorInstances);
+				return new ChannelProviderDeliveryReportRequestModelBinder(_channelProviderFactory);
 			}
 			return null;
 		}

@@ -27,22 +27,27 @@ namespace Transmitly.Microsoft.Aspnet.Mvc
 	/// <param name="requestBody">Request string body.</param>
 	internal sealed class DefaultRequestAdaptorContext(HttpRequestBase request, string requestBody) : IRequestAdaptorContext
 	{
-		private readonly Dictionary<string, string> _queryString = request.QueryString.AllKeys.ToDictionary(k => k, k => request.QueryString[k]);
+		// ASP.NET request validation throws on markup-like values (e.g. "<id@host>" in Mailgun headers), which would fail the webhook.
+		// Payloads are checked by the provider's adaptor instead
+		private readonly UnvalidatedRequestValuesBase _request = request.Unvalidated;
+
+		// A bare flag such as "&debug" parses with a null key.
+		private readonly Dictionary<string, string> _queryString = request.Unvalidated.QueryString.AllKeys.Where(k => k != null).ToDictionary(k => k, k => request.Unvalidated.QueryString[k]);
 
 
 		public string? GetQueryValue(string key)
 		{
-			return request.QueryString[key];
+			return _request.QueryString[key];
 		}
 
 		public string? GetFormValue(string key)
 		{
-			return request.Form[key];
+			return _request.Form[key];
 		}
 
 		public string? GetHeaderValue(string key)
 		{
-			return request.Headers[key];
+			return _request.Headers[key];
 		}
 
 
@@ -55,13 +60,13 @@ namespace Transmitly.Microsoft.Aspnet.Mvc
 		public string Content => requestBody;
 
 		// RawUrl keeps the path and query exactly as received, which URL-signing providers (Twilio) need.
-		public string? RequestUrl => request.Url == null ? null : request.Url.GetLeftPart(UriPartial.Authority) + request.RawUrl;
+		public string? RequestUrl => _request.Url == null ? null : _request.Url.GetLeftPart(UriPartial.Authority) + _request.RawUrl;
 
-
-		public string? ResourceId => GetQueryValue(DeliveryUtil.ResourceIdKey);
 
 		public IDictionary<string, string> QueryString => _queryString;
 
+		public string? ResourceId => GetQueryValue(DeliveryUtil.ResourceIdKey);
+		
 		public string? PipelineIntent => GetQueryValue(DeliveryUtil.PipelineIntentKey);
 
 		public string? PipelineId => GetQueryValue(DeliveryUtil.PipelineIdKey);

@@ -32,7 +32,7 @@ namespace Transmitly
 		/// <exception cref="DuplicateModelBinderRegistrationException">When the model binder has been registered already.</exception>
 		public static void AddChannelProviderDeliveryReportModelBinders(this ModelBinderProviderCollection modelBinderProviders, IChannelProviderFactory channelProviderFactory)
 		{
-			if (modelBinderProviders.Any(a => a.GetBinder(typeof(ChannelProviderModelBinderProvider)) != null))
+			if (modelBinderProviders.OfType<ChannelProviderModelBinderProvider>().Any())
 				throw new DuplicateModelBinderRegistrationException();
 			modelBinderProviders.Add(new ChannelProviderModelBinderProvider(channelProviderFactory));
 		}
@@ -45,7 +45,7 @@ namespace Transmitly
 		/// <exception cref="DuplicateModelBinderRegistrationException">When the model binder has been registered already.</exception>
 		public static void AddChannelProviderDeliveryReportModelBinders(this CommunicationsClientBuilder communicationsClientBuilder, IChannelProviderFactory channelProviderFactory)
 		{
-			if (ModelBinderProviders.BinderProviders.Any(a => a.GetBinder(typeof(ChannelProviderModelBinderProvider)) != null))
+			if (ModelBinderProviders.BinderProviders.OfType<ChannelProviderModelBinderProvider>().Any())
 				throw new DuplicateModelBinderRegistrationException();
 
 			ModelBinderProviders.BinderProviders.Add(new ChannelProviderModelBinderProvider(channelProviderFactory));
